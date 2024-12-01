@@ -1,0 +1,50 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡幻影坦克⭐</title>
+    <style>
+        img {
+            height: 40%;
+            margin: 5px;
+        }
+    </style>
+    <script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
+</head>
+
+<body>
+    <input type="range" value="255" min="0" max="255" step="1" oninput="changeBC(this.value)"
+        onchange="changeBC(this.value)">
+    <br>
+    <div id="container">
+        <!-- 此处必须是 PNG 格式 -->
+        <!-- <img src="img/img.png" alt=""> -->
+        {% for img in imgs %}
+        <img src="{{ img }}" alt="">
+        {% endfor %}
+    </div>
+</body>
+
+<script>
+    // 修改每个图片的背景色
+    // function changeBC(v) {
+    //     document.querySelectorAll('div#container>img').forEach(img => img.style.backgroundColor = `rgb(${v},${v},${v})`)
+    // }
+
+    // 修改整个文档的背景色
+    function changeBC(v) {
+        document.body.style.backgroundColor = `rgb(${v},${v},${v})`
+    }
+
+    const socket = io();  // 创建SocketIO连接
+    socket.on('created', function (data) {
+        const imageContainer = document.getElementById('container');
+        const img = document.createElement('img' );
+        img.src = data.src;
+        img.alt = data.name;
+        imageContainer.appendChild(img);
+    });
+</script>
+
+</html>
