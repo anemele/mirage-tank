@@ -3,7 +3,13 @@ from pathlib import Path
 
 from flask import Flask, render_template, send_file, send_from_directory
 from flask_socketio import SocketIO
-from watchdog.events import DirModifiedEvent, FileModifiedEvent, FileSystemEventHandler
+from watchdog.events import (
+    DirModifiedEvent,
+    DirMovedEvent,
+    FileModifiedEvent,
+    FileMovedEvent,
+    FileSystemEventHandler,
+)
 from watchdog.observers import Observer
 
 THIS_PATH = Path(__file__).parent
@@ -22,21 +28,34 @@ imgs = {f"img/{path.name}" for path in IMAGES_PATH.glob("*.png")}
 
 
 class MyHandler(FileSystemEventHandler):
+    def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
+        src_pth = str(event.src_path)
+        dest_pth = str(event.dest_path)
+        # print(f"Moved: from {src_pth} to {dest_pth}")
+        if src_pth.endswith(".png"):
+            name = osp.basename(src_pth)
+            imgs.discard(f"img/{name}")
+        if dest_pth.endswith(".png"):
+            name = osp.basename(dest_pth)
+            imgs.add(f"img/{name}")
+            socketio.emit("created", dict(src=f"img/{name}", name=name))
+        # print(imgs)
+
     def on_created(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
-        path = str(event.src_path)
+        pth = str(event.src_path)
         # print(f"Created: {path}")
-        if path.endswith(".png"):
-            name = osp.basename(path)
+        if pth.endswith(".png"):
+            name = osp.basename(pth)
             imgs.add(f"img/{name}")
             socketio.emit("created", dict(src=f"img/{name}", name=name))
         # print(imgs)
 
     def on_deleted(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
-        path = str(event.src_path)
+        pth = str(event.src_path)
         # print(f"Deleted: {path}")
-        if path.endswith(".png"):
-            name = osp.basename(path)
-            imgs.remove(f"img/{name}")
+        if pth.endswith(".png"):
+            name = osp.basename(pth)
+            imgs.discard(f"img/{name}")
         # print(imgs)
 
 
