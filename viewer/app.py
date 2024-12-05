@@ -1,4 +1,5 @@
 import os.path as osp
+from itertools import chain
 from pathlib import Path
 
 from flask import Flask, render_template, send_file, send_from_directory
@@ -24,7 +25,14 @@ app = Flask(
 )
 socketio = SocketIO(app)
 
-imgs = {f"img/{path.name}" for path in IMAGES_PATH.glob("*.png")}
+SUPPORTED_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "svg", "webp")
+
+imgs = {
+    f"img/{path.name}"
+    for path in chain.from_iterable(
+        IMAGES_PATH.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS
+    )
+}
 
 
 class MyHandler(FileSystemEventHandler):
