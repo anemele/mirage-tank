@@ -13,11 +13,13 @@ from watchdog.events import (
 )
 from watchdog.observers import Observer
 
-THIS_PATH = Path(__file__).parent
-IMAGES_PATH = THIS_PATH.parent / f"{ THIS_PATH.name }-images"
+IMAGES_PATH = Path.cwd() / "viewer-images"
 if not IMAGES_PATH.exists():
     IMAGES_PATH.mkdir()
+if not (gitignore_path := IMAGES_PATH / ".gitignore").exists():
+    gitignore_path.write_text("*")
 
+THIS_PATH = Path(__file__).parent
 app = Flask(
     __name__,
     template_folder=THIS_PATH,
@@ -89,5 +91,5 @@ def get_img(name: str):
     return send_file(str(img_pth))
 
 
-if __name__ == "__main__":
+def main():
     app.run(debug=False, host="localhost")
