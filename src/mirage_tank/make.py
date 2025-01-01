@@ -132,17 +132,20 @@ def main():
     parser = argparse.ArgumentParser(prog="make-tank", description=__doc__)
     parser.add_argument("top_img", help="上层图片/白色背景下显示的图片")
     parser.add_argument("bottom_img", help="下层图片/黑色背景下显示的图片")
-    default_o = "output.png"
-    parser.add_argument(
-        "-o", "--output", default=default_o, help=f"输出图片路径，默认：{default_o}"
-    )
+    parser.add_argument("-o", "--output", help="输出图片路径")
 
     args = parser.parse_args()
     t: str = args.top_img
     b: str = args.bottom_img
-    o: str = args.output
-    if not o.endswith(".png"):
-        o += ".png"
+    o: str | None = args.output
+
+    if o is not None:
+        if not o.endswith(".png"):
+            o += ".png"
+    else:
+        p, _ = op.splitext(t)
+        o = f"{p}_output.png"
+
     makeit(t, b, o)
 
 
