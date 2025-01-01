@@ -9,23 +9,22 @@ import os.path as op
 import numpy as np
 from PIL import Image
 
-# 以下除了 merge 返回值是 3 维向量，其他参数都是 2 维向量。
 
-
-def light(arr: np.ndarray) -> np.ndarray:
+def light(arr: np.ndarray) -> np.ndarray:  # 二维向量 w*h
     # read-only
     arr = arr >> 1
     arr += 128
     return arr
 
 
-def dark(arr: np.ndarray) -> np.ndarray:
+def dark(arr: np.ndarray) -> np.ndarray:  # 二维向量 w*h
     return arr >> 1
 
 
 def resize_and_center(
-    top_img: np.ndarray, bottom_img: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
+    top_img: np.ndarray,  # 二维向量 w*h
+    bottom_img: np.ndarray,  # 二维向量 w*h
+) -> tuple[np.ndarray, np.ndarray]:  # 二维向量 w*h
     h_t, w_t = top_img.shape
     h_b, w_b = bottom_img.shape
     w, h = max(w_t, w_b), max(h_t, h_b)
@@ -52,7 +51,10 @@ def resize_and_center(
     return t_ret, b_ret
 
 
-def merge(top_img: np.ndarray, bottom_img: np.ndarray) -> np.ndarray:  # 三维向量 w*h*2
+def merge(
+    top_img: np.ndarray,  # 二维向量 w*h
+    bottom_img: np.ndarray,  # 二维向量 w*h
+) -> np.ndarray:  # 三维向量 w*h*2
     # 计算新的 alpha 通道
     alpha = 255 - (top_img - bottom_img)
     alpha[alpha == 255] = 0  # 处理边界情况
@@ -129,7 +131,11 @@ def makeit(top_path: str, bottom_path: str, output_path: str) -> None:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(prog="make-tank", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="make-tank",
+        description=__doc__,
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument("top_img", help="上层图片/白色背景下显示的图片")
     parser.add_argument("bottom_img", help="下层图片/黑色背景下显示的图片")
     parser.add_argument("-o", "--output", help="输出图片路径")
@@ -146,7 +152,10 @@ def main():
         p, _ = op.splitext(t)
         o = f"{p}_output.png"
 
-    makeit(t, b, o)
+    try:
+        makeit(t, b, o)
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
