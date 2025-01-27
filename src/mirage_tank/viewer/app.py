@@ -93,3 +93,7 @@ def get_img(name: str):
 
 def main():
     app.run(debug=False, host="localhost")
+
+
+if __name__ == "__main__":
+    main()
