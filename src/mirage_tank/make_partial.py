@@ -16,7 +16,7 @@ from .area import convex_hull
 class InteractUI(tk.Tk):
     def __init__(self, image: Image.Image):
         super().__init__()
-        self.title("Draw on Image")
+        self.title("Draw then close")
 
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
@@ -68,21 +68,54 @@ class InteractUI(tk.Tk):
         self._mouse_down = False
         new_points = convex_hull(self._mouse_point)
         self._mouse_point[:] = [p.to_tuple() for p in new_points]
-        self._mouse_point.append(self._mouse_point[0])
-        self._draw_mouse_curve()
+        self._draw_mouse_curve(True)
 
     def _on_mouse_move(self, event: tk.Event):
         if self._mouse_down:
             self._mouse_point.append((event.x, event.y))
             self._draw_mouse_curve()
 
-    def _draw_mouse_curve(self):
+    def _draw_mouse_curve(self, close: bool = False):
         if self._mouse_curve is not None:
             self._canvas.delete(self._mouse_curve)
         if len(self._mouse_point) > 1:
             self._mouse_curve = self._canvas.create_line(
-                self._mouse_point, smooth=True, width=3, fill="red"
+                [*self._mouse_point, self._mouse_point[0]]
+                if close
+                else self._mouse_point,
+                smooth=True,
+                width=3,
+                fill="red",
             )
+
+
+def is_point_in_polygon_numpy(points, polygon):
+    polygon = np.array(polygon)
+    n = len(polygon)
+    inside = np.full(len(points), False, dtype=bool)
+    p1x, p1y = polygon[0]
+    for i in range(n + 1):
+        p2x, p2y = polygon[i % n]
+        check1 = points[:, 1] > min(p1y, p2y)
+        check2 = points[:, 1] <= max(p1y, p2y)
+        check3 = points[:, 0] <= max(p1x, p2x)
+        if p1y != p2y:
+            xinters = (points[:, 1] - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+        else:
+            xinters = np.full(len(points), np.inf)
+        check4 = (p1x == p2x) | (points[:, 0] <= xinters)
+        inside ^= check1 & check2 & check3 & check4
+        p1x, p1y = p2x, p2y
+    return inside
+
+
+def create_mask(width, height, polygon):
+    # 生成所有像素点的坐标
+    all_points = np.array([(x, y) for y in range(height) for x in range(width)])
+    mask_flat = is_point_in_polygon_numpy(all_points, polygon)
+    # 将一维的结果转换为二维 mask
+    mask = mask_flat.reshape((height, width)).astype(np.bool)
+    return mask
 
 
 def get_mask_img(
@@ -118,12 +151,20 @@ def make(img_path: str, output_path: str) -> None:
     with Image.open(img_path) as img:
         img_rgb_arr = np.asarray(img.convert("RGB"))
         img_l_arr = np.asarray(img.convert("L"))
-        points = InteractUI(img).get_mouse_points()
-        print(points)
-        return
+        ui = InteractUI(img)
 
-    mask = np.zeros_like(img_l_arr, dtype=np.bool)
-    mask[200:600, 200:700] = True
+    points = ui.get_mouse_points()
+    if len(points) < 3:
+        print("Too few points, please draw more points.")
+        return None
+    scale_ratio = ui.get_scale_ratio()
+    if scale_ratio < 1:
+        points = [(p[0] / scale_ratio, p[1] / scale_ratio) for p in points]
+
+    mask = create_mask(img_l_arr.shape[1], img_l_arr.shape[0], points)
+
+    # mask = np.zeros_like(img_l_arr, dtype=np.bool)
+    # mask[200:600, 200:700] = True
     mask_img_arr = get_mask_img(img_l_arr, mask)
 
     t1, t2 = mask_img_arr, img_l_arr
@@ -178,6 +219,9 @@ def main():
     else:
         p, _ = op.splitext(t)
         o = f"{p}_output.png"
+
+    makeit(t, o)
+    return
 
     try:
         makeit(t, o)
