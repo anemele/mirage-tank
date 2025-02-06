@@ -4,10 +4,85 @@
 
 import os
 import os.path as op
+import tkinter as tk
 
 import numpy as np
 from numpy.typing import NDArray
-from PIL import Image
+from PIL import Image, ImageTk
+
+from .area import convex_hull
+
+
+class InteractUI(tk.Tk):
+    def __init__(self, image: Image.Image):
+        super().__init__()
+        self.title("Draw on Image")
+
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        image_width, image_height = image.size
+        width_ratio = screen_width / image_width
+        height_ratio = screen_height / image_height
+        scale_ratio = 0.6 * min(width_ratio, height_ratio)
+        self._scale_ratio = 1
+
+        # 缩放图片
+        if scale_ratio < 1:
+            self._scale_ratio = scale_ratio
+            new_width = int(image_width * scale_ratio)
+            new_height = int(image_height * scale_ratio)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # 创建画布并显示图片
+        self._canvas = tk.Canvas(self, width=image.width, height=image.height)
+        self._canvas.pack()
+        photo = ImageTk.PhotoImage(image)
+        self._canvas.create_image(0, 0, anchor=tk.NW, image=photo)
+
+        # 鼠标轨迹坐标
+        self._mouse_down = False
+        self._mouse_point = list[tuple[float, float]]()
+
+        # 鼠标轨迹曲线
+        self._mouse_curve = None
+
+        # 绑定鼠标事件
+        self._canvas.bind("<ButtonPress-1>", self._on_mouse_down)
+        self._canvas.bind("<ButtonRelease-1>", self._on_mouse_up)
+        self._canvas.bind("<B1-Motion>", self._on_mouse_move)
+
+        self.mainloop()
+
+    def get_scale_ratio(self) -> float:
+        return self._scale_ratio
+
+    def get_mouse_points(self) -> list[tuple[float, float]]:
+        return self._mouse_point
+
+    def _on_mouse_down(self, event):
+        self._mouse_down = True
+        self._mouse_point.clear()
+
+    def _on_mouse_up(self, event):
+        self._mouse_down = False
+        new_points = convex_hull(self._mouse_point)
+        self._mouse_point[:] = [p.to_tuple() for p in new_points]
+        self._mouse_point.append(self._mouse_point[0])
+        self._draw_mouse_curve()
+
+    def _on_mouse_move(self, event: tk.Event):
+        if self._mouse_down:
+            self._mouse_point.append((event.x, event.y))
+            self._draw_mouse_curve()
+
+    def _draw_mouse_curve(self):
+        if self._mouse_curve is not None:
+            self._canvas.delete(self._mouse_curve)
+        if len(self._mouse_point) > 1:
+            self._mouse_curve = self._canvas.create_line(
+                self._mouse_point, smooth=True, width=3, fill="red"
+            )
 
 
 def get_mask_img(
@@ -43,6 +118,9 @@ def make(img_path: str, output_path: str) -> None:
     with Image.open(img_path) as img:
         img_rgb_arr = np.asarray(img.convert("RGB"))
         img_l_arr = np.asarray(img.convert("L"))
+        points = InteractUI(img).get_mouse_points()
+        print(points)
+        return
 
     mask = np.zeros_like(img_l_arr, dtype=np.bool)
     mask[200:600, 200:700] = True
