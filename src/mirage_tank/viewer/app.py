@@ -92,7 +92,11 @@ def get_img(name: str):
 
 
 def main():
-    app.run(debug=False, host="localhost")
+    import webbrowser
+
+    webbrowser.open_new("http://localhost:5000/")
+
+    app.run(debug=False, host="localhost", port=5000)
 
 
 if __name__ == "__main__":

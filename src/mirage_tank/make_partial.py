@@ -109,7 +109,7 @@ def is_point_in_polygon_numpy(points, polygon):
     return inside
 
 
-def create_mask(width, height, polygon):
+def create_mask(width: int, height: int, polygon) -> NDArray[np.bool]:
     # 生成所有像素点的坐标
     all_points = np.array([(x, y) for y in range(height) for x in range(width)])
     mask_flat = is_point_in_polygon_numpy(all_points, polygon)
@@ -130,7 +130,7 @@ def get_mask_img(
 def merge(
     top_img: NDArray[np.uint8],  # 二维向量 w*h
     bottom_img: NDArray[np.uint8],  # 二维向量 w*h
-) -> NDArray[np.uint8]:  # 三维向量 w*h*2
+) -> tuple[NDArray[np.uint8], NDArray[np.uint8]]:  # 三维向量 w*h*2
     # 计算新的 alpha 通道
     alpha = top_img - bottom_img
     alpha = np.subtract(255, alpha)
@@ -141,17 +141,12 @@ def merge(
     mask = alpha != 0
     lightness[mask] = (bottom_img[mask] / alpha[mask] * 255).astype(np.uint8)
 
-    # 合并新的亮度和 alpha 通道
-    new_img_arr = np.dstack((lightness, alpha))
-
-    return new_img_arr
+    return lightness, alpha
 
 
 def make(img_path: str, output_path: str) -> None:
-    with Image.open(img_path) as img:
-        img_rgb_arr = np.asarray(img.convert("RGB"))
-        img_l_arr = np.asarray(img.convert("L"))
-        ui = InteractUI(img)
+    img = Image.open(img_path)
+    ui = InteractUI(img)
 
     points = ui.get_mouse_points()
     if len(points) < 3:
@@ -161,6 +156,7 @@ def make(img_path: str, output_path: str) -> None:
     if scale_ratio < 1:
         points = [(p[0] / scale_ratio, p[1] / scale_ratio) for p in points]
 
+    img_l_arr = np.asarray(img.convert("L"))
     mask = create_mask(img_l_arr.shape[1], img_l_arr.shape[0], points)
 
     # mask = np.zeros_like(img_l_arr, dtype=np.bool)
@@ -168,13 +164,14 @@ def make(img_path: str, output_path: str) -> None:
     mask_img_arr = get_mask_img(img_l_arr, mask)
 
     t1, t2 = mask_img_arr, img_l_arr
-    merge_img_arr = merge(t1, t2)
+    lightness, alpha = merge(t1, t2)
 
+    img_rgb_arr = np.asarray(img.convert("RGB"))
     w, h, c = img_rgb_arr.shape
     new_arr = 255 * np.ones((w, h, c + 1), dtype=np.uint8)
     new_arr[:, :, :3] = img_rgb_arr
-    new_arr[mask, :3] = merge_img_arr[mask, :1]
-    new_arr[mask, 3] = merge_img_arr[mask, 1]
+    new_arr[mask, 0] = new_arr[mask, 1] = new_arr[mask, 2] = lightness[mask]
+    new_arr[mask, 3] = alpha[mask]
 
     new_img = Image.fromarray(new_arr, mode="RGBA")
     new_img.save(output_path)
@@ -219,9 +216,6 @@ def main():
     else:
         p, _ = op.splitext(t)
         o = f"{p}_output.png"
-
-    makeit(t, o)
-    return
 
     try:
         makeit(t, o)

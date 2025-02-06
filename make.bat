@@ -1,1 +1,0 @@
-@%~dp0.venv\Scripts\make-tank.exe %*
