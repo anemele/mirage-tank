@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image, ImageTk
 
-from .area import convex_hull
+from .area import Point, convex_hull
 
 
 class InteractUI(tk.Tk):
@@ -40,11 +40,9 @@ class InteractUI(tk.Tk):
         photo = ImageTk.PhotoImage(image)
         self._canvas.create_image(0, 0, anchor=tk.NW, image=photo)
 
-        # 鼠标轨迹坐标
+        # 鼠标轨迹
         self._mouse_down = False
-        self._mouse_point = list[tuple[float, float]]()
-
-        # 鼠标轨迹曲线
+        self._mouse_points = list[Point]()
         self._mouse_curve = None
 
         # 绑定鼠标事件
@@ -54,37 +52,35 @@ class InteractUI(tk.Tk):
 
         self.mainloop()
 
+    def get_mouse_points(self) -> list[Point]:
+        return self._mouse_points
+
     def get_scale_ratio(self) -> float:
         return self._scale_ratio
 
-    def get_mouse_points(self) -> list[tuple[float, float]]:
-        return self._mouse_point
-
     def _on_mouse_down(self, event):
         self._mouse_down = True
-        self._mouse_point.clear()
+        self._mouse_points.clear()
 
     def _on_mouse_up(self, event):
         self._mouse_down = False
-        new_points = convex_hull(self._mouse_point)
-        self._mouse_point[:] = [p.to_tuple() for p in new_points]
+        self._mouse_points[:] = convex_hull(self._mouse_points)
         self._draw_mouse_curve(True)
 
     def _on_mouse_move(self, event: tk.Event):
         if self._mouse_down:
-            self._mouse_point.append((event.x, event.y))
+            self._mouse_points.append((event.x, event.y))
             self._draw_mouse_curve()
 
-    def _draw_mouse_curve(self, close: bool = False):
-        if self._mouse_curve is not None:
-            self._canvas.delete(self._mouse_curve)
-        if len(self._mouse_point) > 1:
+    def _draw_mouse_curve(self, close: bool = False) -> None:
+        if len(self._mouse_points) > 1:
+            if self._mouse_curve is not None:
+                self._canvas.delete(self._mouse_curve)
+            points = self._mouse_points
             self._mouse_curve = self._canvas.create_line(
-                [*self._mouse_point, self._mouse_point[0]]
-                if close
-                else self._mouse_point,
+                [*points, points[0]] if close else points,
                 smooth=True,
-                width=3,
+                width=2,
                 fill="red",
             )
 
