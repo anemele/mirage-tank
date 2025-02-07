@@ -89,8 +89,7 @@ class InteractUI(tk.Tk):
             )
 
 
-def is_point_in_polygon_numpy(points, polygon):
-    polygon = np.array(polygon)
+def is_point_in_polygon(points: NDArray[np.uint], polygon: NDArray) -> NDArray[np.bool]:
     n = len(polygon)
     inside = np.full(len(points), False, dtype=bool)
     p1x, p1y = polygon[0]
@@ -109,10 +108,10 @@ def is_point_in_polygon_numpy(points, polygon):
     return inside
 
 
-def create_mask(width: int, height: int, polygon) -> NDArray[np.bool]:
+def create_mask(width: int, height: int, polygon: NDArray) -> NDArray[np.bool]:
     # 生成所有像素点的坐标
     all_points = np.array([(x, y) for y in range(height) for x in range(width)])
-    mask_flat = is_point_in_polygon_numpy(all_points, polygon)
+    mask_flat = is_point_in_polygon(all_points, polygon)
     # 将一维的结果转换为二维 mask
     mask = mask_flat.reshape((height, width)).astype(np.bool)
     return mask
@@ -145,22 +144,25 @@ def merge(
 
 
 def make(img_path: str, output_path: str) -> None:
-    img = Image.open(img_path)
-    ui = InteractUI(img)
+    try:
+        img = Image.open(img_path)
+        ui = InteractUI(img)
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
 
     points = ui.get_mouse_points()
     if len(points) < 3:
         print("Too few points, please draw more points.")
         return None
+    points = np.array(points)
     scale_ratio = ui.get_scale_ratio()
     if scale_ratio < 1:
-        points = [(p[0] / scale_ratio, p[1] / scale_ratio) for p in points]
+        points = np.divide(points, scale_ratio, casting="unsafe")
+
+    mask = create_mask(img.width, img.height, points)
 
     img_l_arr = np.asarray(img.convert("L"))
-    mask = create_mask(img_l_arr.shape[1], img_l_arr.shape[0], points)
-
-    # mask = np.zeros_like(img_l_arr, dtype=np.bool)
-    # mask[200:600, 200:700] = True
     mask_img_arr = get_mask_img(img_l_arr, mask)
 
     t1, t2 = mask_img_arr, img_l_arr
@@ -183,16 +185,12 @@ def makeit(img_path: str, output_path: str) -> None:
         make(img_path, output_path)
         return None
 
-    output_dir = f"output_{img_path}"
+    output_dir = op.join(img_path, "output")
     if not op.exists(output_dir):
         os.mkdir(output_dir)
     for top_file in os.scandir(img_path):
-        if not top_file.name.endswith(".jpg"):
-            continue
-        make(
-            top_file.path,
-            op.join(output_dir, f"{top_file.name[:-4]}.png"),
-        )
+        name, _ = op.splitext(top_file.name)
+        make(top_file.path, op.join(output_dir, f"{name}.png"))
 
 
 def main():
@@ -205,10 +203,12 @@ def main():
     )
     parser.add_argument("img", help="输入图片路径")
     parser.add_argument("-o", "--output", help="输出图片路径")
+    parser.add_argument("--debug", action="store_true", help="debug模式")
 
     args = parser.parse_args()
     t: str = args.img
     o: str | None = args.output
+    is_debug: bool = args.debug
 
     if o is not None:
         if not o.endswith(".png"):
@@ -216,6 +216,10 @@ def main():
     else:
         p, _ = op.splitext(t)
         o = f"{p}_output.png"
+
+    if is_debug:
+        makeit(t, o)
+        return
 
     try:
         makeit(t, o)
