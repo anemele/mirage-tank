@@ -2,7 +2,7 @@ import os.path as osp
 from itertools import chain
 from pathlib import Path
 
-from flask import Flask, render_template, send_file, send_from_directory
+from flask import Flask, render_template, send_from_directory
 from flask_socketio import SocketIO
 from watchdog.events import (
     DirModifiedEvent,
@@ -27,13 +27,11 @@ app = Flask(
 )
 socketio = SocketIO(app)
 
-SUPPORTED_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "svg", "webp")
+SUPPORTED_EXTENSIONS = ("*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.webp")
 
-imgs = {
-    f"img/{path.name}"
-    for path in chain.from_iterable(
-        IMAGES_PATH.glob(f"*.{ext}") for ext in SUPPORTED_EXTENSIONS
-    )
+img_names = {
+    path.name
+    for path in chain.from_iterable(map(IMAGES_PATH.glob, SUPPORTED_EXTENSIONS))
 }
 
 
@@ -41,32 +39,39 @@ class MyHandler(FileSystemEventHandler):
     def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
         src_pth = str(event.src_path)
         dest_pth = str(event.dest_path)
-        # print(f"Moved: from {src_pth} to {dest_pth}")
+        print(f"Moved: from {src_pth} to {dest_pth}")
         if src_pth.endswith(".png"):
             name = osp.basename(src_pth)
-            imgs.discard(f"img/{name}")
+            img_names.discard(name)
+            socketio.emit("deleted", dict(src=f"img/{name}", name=name))
         if dest_pth.endswith(".png"):
             name = osp.basename(dest_pth)
-            imgs.add(f"img/{name}")
+            img_names.add(name)
             socketio.emit("created", dict(src=f"img/{name}", name=name))
-        # print(imgs)
+
+    def on_modified(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
+        pth = str(event.src_path)
+        print(f"Modified: {pth}")
+        if pth.endswith(".png"):
+            name = osp.basename(pth)
+            img_names.add(name)
+            socketio.emit("modified", dict(src=f"img/{name}", name=name))
 
     def on_created(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
         pth = str(event.src_path)
-        # print(f"Created: {path}")
+        print(f"Created: {pth}")
         if pth.endswith(".png"):
             name = osp.basename(pth)
-            imgs.add(f"img/{name}")
+            img_names.add(name)
             socketio.emit("created", dict(src=f"img/{name}", name=name))
-        # print(imgs)
 
     def on_deleted(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
         pth = str(event.src_path)
-        # print(f"Deleted: {path}")
+        print(f"Deleted: {pth}")
         if pth.endswith(".png"):
             name = osp.basename(pth)
-            imgs.discard(f"img/{name}")
-        # print(imgs)
+            img_names.discard(name)
+            socketio.emit("deleted", dict(src=f"img/{name}", name=name))
 
 
 event_handler = MyHandler()
@@ -77,7 +82,10 @@ observer.start()
 
 @app.route("/")
 def index():
-    return render_template("index.html", imgs=imgs)
+    return render_template(
+        "index.html",
+        imgs=[dict(src=f"img/{name}", name=name) for name in img_names],
+    )
 
 
 @app.route("/favicon.ico")
@@ -87,8 +95,7 @@ def favicon():
 
 @app.route("/img/<name>")
 def get_img(name: str):
-    img_pth = IMAGES_PATH / name
-    return send_file(str(img_pth))
+    return send_from_directory(IMAGES_PATH, name)
 
 
 def main():

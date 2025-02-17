@@ -21,7 +21,7 @@
         <!-- 此处必须是 PNG 格式 -->
         <!-- <img src="img/img.png" alt=""> -->
         {% for img in imgs %}
-        <img src="{{ img }}" alt="">
+        <img src="{{ img.src }}" alt="{{ img.name }}" id="{{ img.name }}">
         {% endfor %}
     </div>
 </body>
@@ -38,12 +38,26 @@
     }
 
     const socket = io();  // 创建SocketIO连接
+    const imageContainer = document.getElementById('container');
+
     socket.on('created', function (data) {
-        const imageContainer = document.getElementById('container');
-        const img = document.createElement('img' );
+        const img = document.createElement('img');
         img.src = data.src;
         img.alt = data.name;
+        img.id = data.name;
         imageContainer.appendChild(img);
+    });
+    socket.on('modified', function (data) {
+        const img = document.getElementById(data.name);
+        if (img) {
+            img.src = `${data.src}?t=${new Date().getTime()}`; // 防止缓存
+        }
+    });
+    socket.on('deleted', function (data) {
+        const img = document.getElementById(data.name);
+        if (img) {
+            imageContainer.removeChild(img);
+        }
     });
 </script>
 
