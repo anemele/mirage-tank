@@ -1,6 +1,6 @@
 [project]
 name = "mirage-tank"
-version = "0.4.0"
+version = "0.5.0"
 description = "mirage tank maker and viewer"
 readme = "README.md"
 authors = [{ name = "Jason Swift", email = "anemele@outlook.com" }]
@@ -14,9 +14,9 @@ dependencies = [
 ]
 
 [project.scripts]
-make-tank = "mirage_tank.make:main"
-make-partial-tank = "mirage_tank.make_partial:main"
-extract-tank = "mirage_tank.extract:main"
+make-tank = "mirage_tank.maker.make_classic:main"
+make-partial-tank = "mirage_tank.maker.make_partial:main"
+extract-tank = "mirage_tank.maker.extract:main"
 view-tank = "mirage_tank.viewer.app:main"
 
 [build-system]

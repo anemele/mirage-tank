@@ -1,8 +1,4 @@
-from mirage_tank.area import convex_hull
-
-
-def f(sample):
-    return [point.to_tuple() for point in convex_hull(sample)]
+from mirage_tank.maker.algo import convex_hull
 
 
 def test_convex_hull():
@@ -20,7 +16,7 @@ def test_convex_hull():
     ]
     expected = [(0, 0), (2, 0), (3, 1), (3, 3), (0, 3)]
 
-    assert f(points) == expected
+    assert convex_hull(points) == expected
 
 
 def plot_points(points: list[tuple[float, float]]):

@@ -10,7 +10,8 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image, ImageTk
 
-from .area import Point, convex_hull
+from .algo import Point, convex_hull
+from .core import merge_top_and_bottom
 
 
 class InteractUI(tk.Tk):
@@ -122,23 +123,6 @@ def get_mask_img(
     return res_arr
 
 
-def merge(
-    top_img: NDArray[np.uint8],  # 二维向量 w*h
-    bottom_img: NDArray[np.uint8],  # 二维向量 w*h
-) -> tuple[NDArray[np.uint8], NDArray[np.uint8]]:  # 三维向量 w*h*2
-    # 计算新的 alpha 通道
-    alpha = top_img - bottom_img
-    alpha = np.subtract(255, alpha)
-    alpha[alpha == 255] = 0  # 处理边界情况
-
-    # 计算新的亮度值
-    lightness = np.zeros_like(alpha, dtype=np.uint8)
-    mask = alpha != 0
-    lightness[mask] = (bottom_img[mask] / alpha[mask] * 255).astype(np.uint8)
-
-    return lightness, alpha
-
-
 def make(img_path: str, output_path: str) -> None:
     try:
         img = Image.open(img_path)
@@ -162,11 +146,11 @@ def make(img_path: str, output_path: str) -> None:
     mask_img_arr = get_mask_img(img_l_arr, mask)
 
     t1, t2 = mask_img_arr, img_l_arr
-    lightness, alpha = merge(t1, t2)
+    lightness, alpha = merge_top_and_bottom(t1, t2)
 
     img_rgb_arr = np.asarray(img.convert("RGB"))
     w, h, c = img_rgb_arr.shape
-    new_arr = 255 * np.ones((w, h, c + 1), dtype=np.uint8)
+    new_arr = np.full((w, h, c + 1), 255, dtype=np.uint8)
     new_arr[:, :, :3] = img_rgb_arr
     new_arr[mask, 0] = new_arr[mask, 1] = new_arr[mask, 2] = lightness[mask]
     new_arr[mask, 3] = alpha[mask]

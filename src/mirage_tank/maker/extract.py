@@ -8,16 +8,7 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 
-
-def unlight(arr: np.ndarray) -> np.ndarray:  # 二维向量 w*h
-    # read-only
-    arr = arr - 128
-    arr <<= 1
-    return arr
-
-
-def undark(arr: np.ndarray) -> np.ndarray:  # 二维向量 w*h
-    return arr << 1
+from .core import undark, unlight
 
 
 def _extract(
