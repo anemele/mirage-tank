@@ -11,8 +11,10 @@ from PIL import Image
 
 from .core import dark, light, merge_top_and_bottom, resize_and_center
 
+type PathLike = str | os.PathLike[str]
 
-def make(top_path: str, bottom_path: str, output_path: str) -> None:
+
+def make(top_path: PathLike, bottom_path: PathLike, output_path: PathLike) -> None:
     with Image.open(top_path) as ft, Image.open(bottom_path) as fb:
         ftl = ft.convert("L")
         fbl = fb.convert("L")
@@ -26,7 +28,7 @@ def make(top_path: str, bottom_path: str, output_path: str) -> None:
     print(f"save at `{output_path}`")
 
 
-def makeit(top_path: str, bottom_path: str, output_path: str) -> None:
+def makeit(top_path: PathLike, bottom_path: PathLike, output_path: PathLike) -> None:
     if op.isfile(top_path) and op.isfile(bottom_path):
         make(top_path, bottom_path, output_path)
     elif op.isfile(top_path) and op.isdir(bottom_path):

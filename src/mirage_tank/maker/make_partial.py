@@ -13,6 +13,8 @@ from PIL import Image, ImageTk
 from .algo import Point, convex_hull
 from .core import compute_alpha, compute_lightness
 
+type PathLike = str | os.PathLike[str]
+
 
 class InteractUI(tk.Tk):
     def __init__(self, image: Image.Image):
@@ -123,7 +125,7 @@ def get_mask_img(
     return res_arr
 
 
-def make(img_path: str, output_path: str) -> None:
+def make(img_path: PathLike, output_path: PathLike) -> None:
     try:
         img = Image.open(img_path)
         ui = InteractUI(img)
@@ -161,7 +163,7 @@ def make(img_path: str, output_path: str) -> None:
     print(f"save at `{output_path}`")
 
 
-def makeit(img_path: str, output_path: str) -> None:
+def makeit(img_path: PathLike, output_path: PathLike) -> None:
     if op.isfile(img_path):
         make(img_path, output_path)
         return None

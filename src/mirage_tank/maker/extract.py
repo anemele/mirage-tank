@@ -3,12 +3,15 @@
 
 只保证对本程序生成图片的效果，其他方法生成的图片效果可能不太好。"""
 
+import os
 import os.path as osp
 
 import numpy as np
 from PIL import Image
 
 from .core import undark, unlight
+
+type PathLike = str | os.PathLike[str]
 
 
 def _extract(
@@ -23,7 +26,7 @@ def _extract(
     return unlight(top_arr), undark(bottom_arr)
 
 
-def extract(img_path: str) -> tuple[Image.Image, Image.Image]:
+def extract(img_path: PathLike) -> tuple[Image.Image, Image.Image]:
     with Image.open(img_path) as img:
         fl = img.convert("LA")
 
@@ -36,7 +39,7 @@ def extract(img_path: str) -> tuple[Image.Image, Image.Image]:
     return top_img, bottom_img
 
 
-def extract_it(img_path: str) -> None:
+def extract_it(img_path: PathLike) -> None:
     top_img, bottom_img = extract(img_path)
     p, _ = osp.splitext(img_path)
     top_img.save(f"{p}_top.jpg")
