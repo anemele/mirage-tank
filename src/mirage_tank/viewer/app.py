@@ -99,11 +99,16 @@ def get_img(name: str):
 
 
 def main():
+    import argparse
     import webbrowser
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
 
     webbrowser.open_new("http://localhost:5000/")
 
-    app.run(debug=False, host="localhost", port=5000)
+    app.run(debug=args.debug, host="localhost", port=5000)
 
 
 if __name__ == "__main__":

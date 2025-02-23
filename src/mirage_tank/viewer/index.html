@@ -1,64 +1,155 @@
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-CN">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡幻影坦克⭐</title>
-    <style>
-        img {
-            height: 40%;
-            margin: 5px;
-        }
-    </style>
-    <script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡幻影坦克⭐</title>
+  <style>
+    /* 全局样式 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: #fff;
+      transition: background-color 0.3s ease;
+    }
+
+    /* 大图片样式 */
+    #main-image {
+      height: 80vh;
+      width: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* 图片列表样式 */
+    #image-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    #image-container img {
+      width: 100px;
+      height: 100px;
+      margin: 0 10px;
+      cursor: pointer;
+    }
+
+    /* 亮度调节拉杆样式 */
+    #brightness-slider {
+      position: fixed;
+      right: 5%;
+      top: 50%;
+      transform: translateY(-50%);
+      -webkit-appearance: none;
+      appearance: none;
+      border-radius: 5px;
+      width: 10px;
+      height: 200px;
+      background: #d3d3d3;
+      outline: none;
+      opacity: 0.7;
+      -webkit-transition: .2s;
+      transition: opacity .2s;
+      /* 垂直滑块 */
+      writing-mode: vertical-lr;
+      direction: rtl;
+      /* WebKit */
+    }
+
+    #brightness-slider:hover {
+      opacity: 1;
+    }
+
+    #brightness-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      border-radius: 50%;
+      width: 25px;
+      height: 25px;
+      background: #007BFF;
+      cursor: pointer;
+    }
+
+    #brightness-slider::-moz-range-thumb {
+      border-radius: 50%;
+      width: 25px;
+      height: 25px;
+      background: #007BFF;
+      cursor: pointer;
+    }
+  </style>
+  <script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
 </head>
 
 <body>
-    <input type="range" value="255" min="0" max="255" step="1" oninput="changeBC(this.value)"
-        onchange="changeBC(this.value)">
-    <br>
-    <div id="container">
-        <!-- 此处必须是 PNG 格式 -->
-        <!-- <img src="img/img.png" alt=""> -->
-        {% for img in imgs %}
-        <img src="{{ img.src }}" alt="{{ img.name }}" id="{{ img.name }}">
-        {% endfor %}
-    </div>
-</body>
+  <!-- 大图片 -->
+  <img id="main-image" alt="大图片">
 
-<script>
-    // 修改每个图片的背景色
-    // function changeBC(v) {
-    //     document.querySelectorAll('div#container>img').forEach(img => img.style.backgroundColor = `rgb(${v},${v},${v})`)
-    // }
+  <!-- 图片列表 -->
+  <div id="image-container">
+    {% for img in imgs %}
+    <img src="{{ img.src }}" alt="{{ img.name }}" id="{{ img.name }}">
+    {% endfor %}
+  </div>
 
-    // 修改整个文档的背景色
-    function changeBC(v) {
-        document.body.style.backgroundColor = `rgb(${v},${v},${v})`
+  <!-- 亮度调节拉杆 -->
+  <input type="range" id="brightness-slider" min="0" max="255" value="255">
+
+  <script>
+    // 获取元素
+    const mainImage = document.getElementById('main-image');
+    const imageContainer = document.getElementById('image-container');
+    const brightnessSlider = document.getElementById('brightness-slider');
+    const socket = io();  // 创建SocketIO连接
+
+    function changeImage(src) {
+      mainImage.src = src;
     }
 
-    const socket = io();  // 创建SocketIO连接
-    const imageContainer = document.getElementById('container');
+    document.querySelectorAll('#image-container img').forEach(img => {
+      img.addEventListener('click', () => changeImage(img.src));
+    });
+
+    // 亮度调节事件
+    brightnessSlider.addEventListener('input', function () {
+      const brightnessValue = this.value;
+      const backgroundColor = `rgb(${brightnessValue}, ${brightnessValue}, ${brightnessValue})`;
+      document.body.style.backgroundColor = backgroundColor;
+    });
 
     socket.on('created', function (data) {
-        const img = document.createElement('img');
-        img.src = data.src;
-        img.alt = data.name;
-        img.id = data.name;
-        imageContainer.appendChild(img);
+      const img = document.createElement('img');
+      img.src = data.src;
+      img.alt = data.name;
+      img.id = data.name;
+      img.addEventListener('click', () => changeImage(data.src));
+      imageContainer.appendChild(img);
     });
     socket.on('modified', function (data) {
-        const img = document.getElementById(data.name);
-        if (img) {
-            img.src = `${data.src}?t=${new Date().getTime()}`; // 防止缓存
-        }
+      const img = document.getElementById(data.name);
+      if (img) {
+        img.src = `${data.src}?t=${new Date().getTime()}`; // 防止缓存
+      }
     });
     socket.on('deleted', function (data) {
-        const img = document.getElementById(data.name);
-        if (img) {
-            imageContainer.removeChild(img);
-        }
+      const img = document.getElementById(data.name);
+      if (img) {
+        imageContainer.removeChild(img);
+      }
     });
-</script>
+  </script>
+</body>
 
 </html>
