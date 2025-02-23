@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from PIL import Image, ImageTk
 
 from .algo import Point, convex_hull
-from .core import merge_top_and_bottom
+from .core import compute_alpha, compute_lightness
 
 
 class InteractUI(tk.Tk):
@@ -145,8 +145,9 @@ def make(img_path: str, output_path: str) -> None:
     img_l_arr = np.asarray(img.convert("L"))
     mask_img_arr = get_mask_img(img_l_arr, mask)
 
-    t1, t2 = mask_img_arr, img_l_arr
-    lightness, alpha = merge_top_and_bottom(t1, t2)
+    t, b = mask_img_arr, img_l_arr
+    alpha = compute_alpha(t, b)
+    lightness = compute_lightness(alpha, b)
 
     img_rgb_arr = np.asarray(img.convert("RGB"))
     w, h, c = img_rgb_arr.shape
