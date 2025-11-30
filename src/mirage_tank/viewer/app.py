@@ -14,10 +14,8 @@ from watchdog.events import (
 from watchdog.observers import Observer
 
 IMAGES_PATH = Path.cwd() / "viewer-images"
-if not IMAGES_PATH.exists():
-    IMAGES_PATH.mkdir()
-if not (gitignore_path := IMAGES_PATH / ".gitignore").exists():
-    gitignore_path.write_text("*")
+IMAGES_PATH.mkdir(exist_ok=True)
+IMAGES_PATH.joinpath(".gitignore").write_text("*")
 
 THIS_PATH = Path(__file__).parent
 app = Flask(
@@ -27,56 +25,52 @@ app = Flask(
 )
 socketio = SocketIO(app)
 
-SUPPORTED_EXTENSIONS = ("*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.webp")
-
 img_names = {
     path.name
-    for path in chain.from_iterable(map(IMAGES_PATH.glob, SUPPORTED_EXTENSIONS))
+    for path in chain.from_iterable(
+        map(
+            IMAGES_PATH.glob,
+            ("*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.webp"),
+        )
+    )
 }
 
 
 class MyHandler(FileSystemEventHandler):
+    @staticmethod
+    def _op(event: str, src: str) -> None:
+        if not src.endswith(".png"):
+            return
+
+        name = osp.basename(src)
+        if event == "delete":
+            img_names.discard(name)
+        else:
+            img_names.add(name)
+
+        socketio.emit(event, {"src": f"img/{name}", "name": name})
+
     def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
         src_pth = str(event.src_path)
-        dest_pth = str(event.dest_path)
-        print(f"Moved: from {src_pth} to {dest_pth}")
-        if src_pth.endswith(".png"):
-            name = osp.basename(src_pth)
-            img_names.discard(name)
-            socketio.emit("deleted", dict(src=f"img/{name}", name=name))
-        if dest_pth.endswith(".png"):
-            name = osp.basename(dest_pth)
-            img_names.add(name)
-            socketio.emit("created", dict(src=f"img/{name}", name=name))
+        dst_pth = str(event.dest_path)
+        self._op("deleted", src_pth)
+        self._op("created", dst_pth)
 
     def on_modified(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
         pth = str(event.src_path)
-        print(f"Modified: {pth}")
-        if pth.endswith(".png"):
-            name = osp.basename(pth)
-            img_names.add(name)
-            socketio.emit("modified", dict(src=f"img/{name}", name=name))
+        self._op("modified", pth)
 
     def on_created(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
         pth = str(event.src_path)
-        print(f"Created: {pth}")
-        if pth.endswith(".png"):
-            name = osp.basename(pth)
-            img_names.add(name)
-            socketio.emit("created", dict(src=f"img/{name}", name=name))
+        self._op("created", pth)
 
     def on_deleted(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
         pth = str(event.src_path)
-        print(f"Deleted: {pth}")
-        if pth.endswith(".png"):
-            name = osp.basename(pth)
-            img_names.discard(name)
-            socketio.emit("deleted", dict(src=f"img/{name}", name=name))
+        self._op("deleted", pth)
 
 
-event_handler = MyHandler()
 observer = Observer()
-observer.schedule(event_handler, str(IMAGES_PATH), recursive=False)
+observer.schedule(MyHandler(), str(IMAGES_PATH), recursive=False)
 observer.start()
 
 
@@ -84,7 +78,7 @@ observer.start()
 def index():
     return render_template(
         "index.html",
-        imgs=[dict(src=f"img/{name}", name=name) for name in img_names],
+        imgs=[{"src": f"img/{name}", "name": name} for name in img_names],
     )
 
 
@@ -103,13 +97,9 @@ def main():
     import webbrowser
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--debug", action="store_true", default=False)
     args = parser.parse_args()
 
-    webbrowser.open_new("http://localhost:5000/")
+    webbrowser.open_new("http://127.0.0.1:5000/")
 
-    app.run(debug=args.debug, host="localhost", port=5000)
-
-
-if __name__ == "__main__":
-    main()
+    app.run(debug=args.debug, host="127.0.0.1", port=5000)

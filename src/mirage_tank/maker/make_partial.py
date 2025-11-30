@@ -2,9 +2,8 @@
 
 给出一张图片，划定一个区域，在该区域生成一个幻影坦克图片。"""
 
-import os
-import os.path as op
 import tkinter as tk
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,8 +11,6 @@ from PIL import Image, ImageTk
 
 from .algo import Point, convex_hull
 from .core import compute_alpha, compute_lightness
-
-type PathLike = str | os.PathLike[str]
 
 
 class InteractUI(tk.Tk):
@@ -125,7 +122,7 @@ def get_mask_img(
     return res_arr
 
 
-def make(img_path: PathLike, output_path: PathLike) -> None:
+def make(img_path: Path, output_path: Path) -> None:
     try:
         img = Image.open(img_path)
         ui = InteractUI(img)
@@ -163,42 +160,39 @@ def make(img_path: PathLike, output_path: PathLike) -> None:
     print(f"save at `{output_path}`")
 
 
-def makeit(img_path: PathLike, output_path: PathLike) -> None:
-    if op.isfile(img_path):
+def makeit(img_path: Path, output_path: Path) -> None:
+    if img_path.is_file():
         make(img_path, output_path)
         return None
 
-    output_dir = op.join(img_path, "output")
-    if not op.exists(output_dir):
-        os.mkdir(output_dir)
-    for top_file in os.scandir(img_path):
-        name, _ = op.splitext(top_file.name)
-        make(top_file.path, op.join(output_dir, f"{name}.png"))
+    output_dir = img_path.parent / "output"
+    if not output_dir.exists():
+        output_dir.mkdir()
+    for top_file in img_path.iterdir():
+        make(top_file, output_dir / f"{top_file.stem}.png")
 
 
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="make-partial-tank",
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("img", help="输入图片路径")
-    parser.add_argument("-o", "--output", help="输出图片路径")
-    parser.add_argument("--debug", action="store_true", help="debug模式")
+    parser.add_argument("img", type=Path, help="输入图片路径")
+    parser.add_argument("-o", "--output", type=Path, help="输出图片路径")
+    parser.add_argument("--debug", action="store_true", default=False, help="debug模式")
 
     args = parser.parse_args()
-    t: str = args.img
-    o: str | None = args.output
+    t: Path = args.img
+    o: Path | None = args.output
     is_debug: bool = args.debug
 
     if o is not None:
-        if not o.endswith(".png"):
-            o += ".png"
+        if not o.suffix == ".png":
+            o = o.with_suffix(".png")
     else:
-        p, _ = op.splitext(t)
-        o = f"{p}_output.png"
+        o = t.with_name(f"{t.stem}_output.png")
 
     if is_debug:
         makeit(t, o)
@@ -208,7 +202,3 @@ def main():
         makeit(t, o)
     except Exception as e:
         print(f"Error: {e}")
-
-
-if __name__ == "__main__":
-    main()

@@ -3,18 +3,15 @@
 
 幻影坦克原理自行研究，这里仅给出生成程序。"""
 
-import os
-import os.path as op
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
 from .core import dark, light, merge_top_and_bottom, resize_and_center
 
-type PathLike = str | os.PathLike[str]
 
-
-def make(top_path: PathLike, bottom_path: PathLike, output_path: PathLike) -> None:
+def make(top_path: Path, bottom_path: Path, output_path: Path) -> None:
     with Image.open(top_path) as ft, Image.open(bottom_path) as fb:
         ftl = ft.convert("L")
         fbl = fb.convert("L")
@@ -28,47 +25,44 @@ def make(top_path: PathLike, bottom_path: PathLike, output_path: PathLike) -> No
     print(f"save at `{output_path}`")
 
 
-def makeit(top_path: PathLike, bottom_path: PathLike, output_path: PathLike) -> None:
-    if op.isfile(top_path) and op.isfile(bottom_path):
+def makeit(top_path: Path, bottom_path: Path, output_path: Path) -> None:
+    if top_path.is_file() and bottom_path.is_file():
         make(top_path, bottom_path, output_path)
-    elif op.isfile(top_path) and op.isdir(bottom_path):
-        output_dir = f"output_{bottom_path}"
-        if not op.exists(output_dir):
-            os.mkdir(output_dir)
-        for top_file in os.scandir(bottom_path):
-            if not top_file.name.endswith(".jpg"):
-                continue
+
+    elif top_path.is_file() and bottom_path.is_dir():
+        output_dir = output_path.parent / f"output_{bottom_path.name}"
+        output_dir.mkdir(exist_ok=True)
+        for top_file in bottom_path.glob("*.jpg"):
             make(
                 top_path,
-                top_file.path,
-                op.join(output_dir, f"{top_file.name[:-4]}.png"),
+                top_file,
+                output_dir / f"{top_file.stem}.png",
             )
-    elif op.isdir(top_path) and op.isfile(bottom_path):
-        output_dir = f"output_{top_path}"
-        if not op.exists(output_dir):
-            os.mkdir(output_dir)
-        for top_file in os.scandir(top_path):
-            if not top_file.name.endswith(".jpg"):
-                continue
+
+    elif top_path.is_dir() and bottom_path.is_file():
+        output_dir = output_path.with_name(f"output_{top_path.name}")
+        output_dir.mkdir(exist_ok=True)
+        for top_file in top_path.glob("*.jpg"):
             make(
-                top_file.path,
+                top_file,
                 bottom_path,
-                op.join(output_dir, f"{top_file.name[:-4]}.png"),
+                output_dir / f"{top_file.stem}.png",
             )
+
     else:
-        output_dir = f"output_{top_path}_{bottom_path}"
-        if not op.exists(output_dir):
-            os.mkdir(output_dir)
-        for top_file in os.scandir(top_path):
-            if not top_file.name.endswith(".jpg"):
+        output_dir = Path(f"output_{top_path}_{bottom_path}")
+        output_dir.mkdir(exist_ok=True)
+        for top_file in top_path.glob("*.jpg"):
+            bottom_file = bottom_path / top_file.name
+            if not bottom_file.is_file():
                 continue
-            bottom_file = op.join(bottom_path, top_file.name)
-            if not op.isfile(bottom_file):
+            bottom_file = bottom_path / top_file.name
+            if not bottom_file.is_file():
                 continue
             make(
-                top_file.path,
+                top_file,
                 bottom_file,
-                op.join(output_dir, f"{top_file.name[:-4]}.png"),
+                output_dir / f"{top_file.stem}.png",
             )
 
 
@@ -76,31 +70,24 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="make-tank",
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("top_img", help="上层图片/白色背景下显示的图片")
-    parser.add_argument("bottom_img", help="下层图片/黑色背景下显示的图片")
-    parser.add_argument("-o", "--output", help="输出图片路径")
+    parser.add_argument("top_img", type=Path, help="上层图片/白色背景下显示的图片")
+    parser.add_argument("bottom_img", type=Path, help="下层图片/黑色背景下显示的图片")
+    parser.add_argument("-o", "--output", type=Path, help="输出图片路径")
 
     args = parser.parse_args()
-    t: str = args.top_img
-    b: str = args.bottom_img
-    o: str | None = args.output
+    t: Path = args.top_img
+    b: Path = args.bottom_img
+    o: Path | None = args.output
 
-    if o is not None:
-        if not o.endswith(".png"):
-            o += ".png"
+    if o is not None and not o.suffix == ".png":
+        o = o.with_suffix(".png")
     else:
-        p, _ = op.splitext(t)
-        o = f"{p}_output.png"
+        o = t.with_name(f"{t.stem}_output.png")
 
     try:
         makeit(t, b, o)
     except Exception as e:
         print(f"Error: {e}")
-
-
-if __name__ == "__main__":
-    main()
