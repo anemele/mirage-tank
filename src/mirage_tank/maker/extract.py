@@ -3,6 +3,7 @@
 
 只保证对本程序生成图片的效果，其他方法生成的图片效果可能不太好。"""
 
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -44,8 +45,6 @@ def extract_it(img_path: Path) -> None:
 
 
 def main():
-    import argparse
-
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter,
@@ -55,7 +54,4 @@ def main():
 
     img_path: Path = args.img_path
 
-    try:
-        extract_it(img_path)
-    except Exception as e:
-        print(f"Error: {e}")
+    extract_it(img_path)
